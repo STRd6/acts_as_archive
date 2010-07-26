@@ -55,6 +55,13 @@ module ActsAsArchive
           freeze
         end
 
+        def destroy
+          unless new_record?
+            self.class.copy_to_archive("#{self.class.primary_key} = #{id}")
+          end
+          transaction { destroy_with_callbacks! }
+        end
+
         def destroy!
           transaction { destroy_with_callbacks! }
         end
