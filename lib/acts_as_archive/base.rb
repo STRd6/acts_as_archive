@@ -1,10 +1,6 @@
 module ActsAsArchive
   
   module Base
-    def self.included(base)
-      base.extend ActMethods
-    end
-  
     module ActMethods
       def acts_as_archive(options={})
         class_eval <<-end_eval
