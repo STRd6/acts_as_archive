@@ -4,20 +4,21 @@ module ActsAsArchive
 
       def self.included(base)
         unless base.included_modules.include?(InstanceMethods)
+          base.send :extend, ClassMethods
+          base.send :include, InstanceMethods
+
           base.class_eval do
             alias_method :destroy_without_callbacks!, :destroy_without_callbacks
             class <<self
               alias_method :delete_all!, :delete_all
             end
           end
-          base.send :extend, ClassMethods
-          base.send :include, InstanceMethods
         end
       end
 
       module ClassMethods
         def copy_to_archive(conditions, import=false)
-          add_conditions!(where = '', conditions)
+          where = sanitize_sql_for_conditions(conditions)
           insert_cols = column_names.clone
           select_cols = column_names.clone
           if insert_cols.include?('deleted_at')
@@ -36,9 +37,9 @@ module ActsAsArchive
             INSERT INTO archived_#{table_name} (#{insert_cols.join(', ')})
               SELECT #{select_cols.join(', ')}
               FROM #{table_name}
-              #{where}
+              WHERE #{where}
           })
-          connection.execute("DELETE FROM #{table_name} #{where}")
+          connection.execute("DELETE FROM #{table_name} WHERE #{where}")
         end
       
         def delete_all(conditions=nil)
@@ -56,10 +57,7 @@ module ActsAsArchive
         end
 
         def destroy
-          unless new_record?
-            self.class.copy_to_archive("#{self.class.primary_key} = #{id}")
-          end
-          transaction { destroy_with_callbacks! }
+          destroy_without_callbacks
         end
 
         def destroy!
